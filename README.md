@@ -2079,3 +2079,203 @@ The driver orchestrates the pipeline:
 7. Code generation
 8. GCC invocation:
    gcc -std=c17 -O2 -Wall -Wextra -Wpedantic /tmp/prog.c -o prog -L/usr/local/lib -lholyc_runtime -lm
+9. If --run, execute binary
+10. Cleanup
+
+### 13.10 Diagnostics System
+
+Location: src/diag.c (171 lines)
+
+Error levels: ERROR, WARNING, NOTE, ICE (Internal Compiler Error)
+
+Output format:
+file:line:col: level: message
+  |
+  source line
+  ^
+
+Pipeline error flow:
+Read file -> fail -> exit 1
+Lexer -> errors -> skip parse
+Parser -> errors -> skip semantic
+Semantic -> errors -> skip codegen
+CodeGen -> errors -> skip GCC
+GCC -> fail -> exit 1
+
+### 13.11 Runtime Library
+
+Location: runtime/holyc_runtime.c (168 lines), holyc_runtime.h (92 lines)
+
+A static library (libholyc_runtime.a) providing all built-in functions.
+
+Implementation notes:
+- Print/PrintLn -> vprintf wrapper
+- MAlloc -> malloc, Free -> free
+- StrLen -> manual loop (no string.h)
+- StrCompare -> equality check (not strcmp!)
+- AtoI -> strtoll, AtoF -> strtod
+- MemSet/MemCpy/MemCompare -> byte-by-byte loops
+- MSize -> malloc_usable_size
+- CDelay -> usleep(ms * 1000)
+- GetCh -> getchar, PutChar -> putchar
+- Exit -> exit
+- SPrint -> vsprintf
+- Math -> thin wrappers around libm
+
+### 13.12 File-by-File Layout
+
+```
+include/holyc/          # Public API headers
+  token.h               # TokenKind, SourceLocation, Token
+  lexer.h               # Lexer opaque type
+  parser.h              # Parser opaque type
+  ast.h                 # AstKind, AstNode, visitor
+  semantic.h            # Semantic opaque type
+  symbol.h              # Scope, Symbol, SymbolTable
+  types.h               # TypeKind, Type, StructField
+  codegen.h             # CodeGen opaque type
+  driver.h              # DriverOptions struct
+  diag.h                # Diagnostics, Diagnostic
+  utils.h               # StringBuffer, file I/O
+
+src/                    # Compiler implementation
+  main.c                # Entry point (6 lines)
+  token.c               # Token lookup table (140 lines)
+  diag.c                # Diagnostics (171 lines)
+  utils.c               # StringBuffer, file I/O (125 lines)
+  lexer/lexer.c         # Tokenizer (473 lines)
+  parser/parser.c       # Recursive descent parser (1159 lines)
+  ast/ast.c             # AST lifecycle (186 lines)
+  semantic/semantic.c   # Type checking (536 lines)
+  symbol/symbol.c       # Symbol table (157 lines)
+  types/types.c         # Type system (307 lines)
+  codegen/codegen.c     # C17 emitter (1173 lines)
+  driver/driver.c       # CLI orchestration (396 lines)
+
+runtime/                # HolyC runtime library
+  holyc_runtime.h       # Declarations (92 lines)
+  holyc_runtime.c       # Implementations (168 lines)
+
+tests/                  # Test suite
+  test_lexer.c          # 161 lexer tests (213 lines)
+
+docs/                   # Documentation
+  ARCHITECTURE.md       # Architecture (378 lines)
+  LANGUAGE.md           # Language reference (1059 lines)
+
+examples/               # Example .HC programs
+  hello.HC, simple.HC, greeting.HC, arrays.HC,
+  complex.HC, switch.HC, math.HC, mylib.HC,
+  use_import.HC, with_include.HC
+```
+
+---
+
+## 14. HolyC to C17 Transformation Matrix
+
+| HolyC Construct                  | Generated C17 Code                        |
+|----------------------------------|-------------------------------------------|
+| "Hello\n";                     | Print("Hello\n");                       |
+| I64 x = 42;                    | int64_t x = 42;                         |
+| U0 Proc() {}                   | void Proc() {}                          |
+| F64 Calc(F64 x)                | double Calc(double x)                   |
+| Bool done = TRUE;              | bool done = true;                       |
+| Char c = 'A';                  | char c = 'A';                           |
+| class Vec { F64 x; };          | typedef struct { double x; } Vec;        |
+| v.Method();                    | Vec_Method(&v);                         |
+| I64 *ptr = NULL;               | int64_t *ptr = NULL;                    |
+| a ` b                          | pow(a, b)                               |
+| if (0 <= x < 10)               | if (((0 <= x) && (x < 10)))             |
+| offset(Vec.x)                  | offsetof(Vec, x)                        |
+| sizeof(I64)                    | sizeof(int64_t)                         |
+| (F64)x                         | ((double)x)                             |
+| try { } catch { }              | if (setjmp(buf) == 0) { } else { }      |
+| throw;                         | longjmp(buf, 1);                        |
+| throw val;                     | longjmp(buf, 1 + (int)(val));            |
+| case 4...10:                   | case 4: case 5: ... case 10:            |
+| case:                          | case 0: (or next implicit)               |
+| Func; (bare call)              | Func();                                  |
+| asm { "code"; };               | /* inline assembly */ /* code */;        |
+| I64 Sum(I64 n, ...)            | int64_t Sum(int64_t n, ...) (+ va_list setup) |
+| #define WIDTH 800              | #define WIDTH 800 (pass-through)         |
+| Top-level statements            | Wrapped in int main() { ... }            |
+| void / U0                       | void                                     |
+| Print(fmt, ...)                | Print(fmt, ...) (prototype in preamble)  |
+| MAlloc(size)                   | MAlloc(size) (prototype in preamble)     |
+| Sin(x) / Sqrt(x)               | sin(x) / sqrt(x) (wrapper functions)     |
+| I64 arr[5] = {1,2,3};          | int64_t arr[5] = {1,2,3};                |
+| return 0; (top-level)          | return 0; (inside auto-generated main)   |
+| I64 (*fp)(I64);                | int64_t (*fp)(int64_t);                  |
+
+---
+
+# Part IV: Examples and Reference
+
+---
+
+## 15. Comprehensive Examples
+
+### 15.1 Example: Hello World
+
+```c
+// ex01_hello.HC — Three ways to say hello
+Print("Hello from Print()!\n");
+"Hello from auto-print!\n";
+
+I64 main() {
+    Print("Hello from main()!\n");
+    return 0;
+}
+```
+
+### 15.2 Example: Arithmetic and Variables
+
+```c
+// ex02_arithmetic.HC
+I64 a = 25, b = 7;
+Print("a+b=%lld, a-b=%lld, a*b=%lld, a/b=%lld, a%%b=%lld\n",
+       a+b, a-b, a*b, a/b, a%b);
+
+F64 fa=25.0, fb=7.0;
+Print("fa/fb=%.4f\n", fa/fb);
+
+I64 x = 10; x += 5; x *= 3; x >>= 2;
+Print("x = %lld\n", x);
+
+I64 y = 5;
+Print("y++=%lld, ++y=%lld, y--=%lld, --y=%lld\n", y++, ++y, y--, --y);
+return 0;
+```
+
+### 15.3 Example: Control Flow
+
+```c
+// ex03_control.HC
+I64 score = 83;
+if (score >= 90)      { Print("A\n"); }
+else if (score >= 80) { Print("B\n"); }
+else if (score >= 70) { Print("C\n"); }
+else                  { Print("F\n"); }
+
+I64 age = 17;
+if (13 <= age < 20) { Print("Teenager\n"); }
+
+for (I64 i = 0; i < 5; i++) { Print("%lld ", i); }
+Print("\n");
+
+I64 i = 0; while (i < 5) { Print("%lld ", i); i++; }
+Print("\n");
+
+i = 0;
+loop:
+    if (i >= 5) goto end;
+    Print("%lld ", i); i++; goto loop;
+end:
+Print("\n");
+return 0;
+```
+
+### 15.4 Example: Functions and Variadics
+
+```c
+// ex04_functions.HC
