@@ -2929,3 +2929,366 @@ U0 Transition(enum State next)
 ```
 
 #### Dynamic Array (Vector)
+
+```c
+class IntVector {
+    I64 *data;
+    U64 capacity;
+    U64 count;
+};
+
+U0 VectorInit(IntVector *v, U64 cap)
+{
+    v->data = MAlloc(cap * sizeof(I64));
+    v->capacity = cap;
+    v->count = 0;
+}
+
+U0 VectorPush(IntVector *v, I64 val)
+{
+    if (v->count >= v->capacity) {
+        v->capacity *= 2;
+        I64 *new_data = MAlloc(v->capacity * sizeof(I64));
+        MemCpy((U8*)new_data, (U8*)v->data, v->count * sizeof(I64));
+        Free(v->data);
+        v->data = new_data;
+    }
+    v->data[v->count++] = val;
+}
+
+U0 VectorDestroy(IntVector *v)
+{
+    Free(v->data);
+    v->data = NULL;
+    v->capacity = 0;
+    v->count = 0;
+}
+```
+
+### 21.5 Debugging Tips
+
+1. **Use --tokens**: See exactly how the lexer interprets your code.
+   Each token is displayed with its kind, spelling, and source location.
+
+2. **Use --ast**: View the Abstract Syntax Tree structure. This shows
+   how the parser interpreted your code's structure.
+
+3. **Use --emit-c**: Examine the generated C17 code. This helps verify
+   that your HolyC code is being translated as expected.
+
+4. **Use --keep-c**: Preserve the .c file after compilation. You can
+   then compile it manually with GCC for debugging.
+
+5. **Add Print() statements**: The simplest debugging technique. HolyC's
+   string auto-print feature makes this particularly easy:
+
+```c
+"Debug: reached point A\\n";
+I64 debug_val = x;
+Print("x = %lld\\n", debug_val);
+```
+
+6. **Use try/catch**: Wrap risky operations in try/catch blocks
+   to catch runtime errors gracefully.
+
+### 21.6 Migration Guide: C to HolyC
+
+For developers coming from C, here is a quick migration guide:
+
+| C Concept                    | HolyC Equivalent                        |
+|------------------------------|-----------------------------------------|
+| `#include <stdio.h>`        | Not needed (Print built-in)             |
+| `#include <stdlib.h>`       | Not needed (MAlloc/Free built-in)       |
+| `#include <math.h>`         | Not needed (Sin/Cos/Sqrt built-in)      |
+| `int main(int argc, char**)`| `I64 main()` or top-level code          |
+| `typedef struct { } Name;`  | `class Name { };`                       |
+| `printf(...)`               | `Print(...)` or `"...";` auto-print     |
+| `int`                       | `I32` or `I64` (prefer I64)            |
+| `double`                    | `F64`                                    |
+| `_Bool / bool`              | `Bool` with `TRUE`/`FALSE`              |
+| `char`                      | `Char`                                   |
+| `int8_t / uint8_t`          | `I8 / U8`                                |
+| `int16_t / uint16_t`        | `I16 / U16`                              |
+| `int32_t / uint32_t`        | `I32 / U32`                              |
+| `int64_t / uint64_t`        | `I64 / U64`                              |
+| `void`                      | `void` or `U0`                          |
+| `offsetof(type, member)`    | `offset(type.member)`                   |
+| `pow(a, b)`                 | `` a ` b ``                              |
+| `va_list / va_start`        | `argc / argv` (built-in)                |
+| `setjmp / longjmp`          | `try / catch / throw`                   |
+| `malloc / free`             | `MAlloc / Free`                          |
+| `strlen / strcmp`           | `StrLen / StrCompare`                    |
+| `atoi / atof`               | `AtoI / AtoF`                            |
+| `usleep / sleep`            | `CDelay(ms)`                             |
+| `exit()`                    | `Exit(code)`                             |
+| `goto` (rare in C)          | `goto` (idiomatic in HolyC)             |
+| `continue`                  | Not recommended, use `goto`              |
+
+### 21.7 Frequently Asked Questions
+
+**Q: Why does HolyC not need #include for runtime functions?**
+
+A: The code generator automatically emits function prototypes for all
+runtime functions in the generated C17 preamble. This eliminates the
+need for header files while keeping the generated code valid C.
+
+**Q: Can I use HolyC for production applications?**
+
+A: holycc is still in early development. While it can compile and run
+many programs, it should be considered experimental for production use.
+The generated C17 code is clean and should be safe, but the language
+implementation may have edge cases.
+
+**Q: Is HolyC compatible with TempleOS HolyC?**
+
+A: holycc aims to be compatible with the HolyC dialect described in
+TempleOS documentation, but it is a clean-room implementation. Some
+TempleOS-specific features (like the graphics system, file system calls)
+are not implemented since holycc targets Linux.
+
+**Q: How does the transpiler handle errors?**
+
+A: The diagnostic system collects all errors and warnings during
+compilation, then displays them at the end with source snippets.
+Compilation stops after the first stage that encounters errors.
+Up to 256 diagnostics can be stored in a single compilation.
+
+**Q: What is the difference between void and U0?**
+
+A: Both map to `void` in the generated C17 code. `U0` (pronounced
+\"U-zero\") is HolyC's type for procedures — functions with no return
+value. It is semantically equivalent to `void` but carries the connotation
+of a zero-sized type. The distinction is philosophical: `void` means
+\"no type\" while `U0` means \"zero-sized procedure type\".
+
+**Q: Are class methods virtual?**
+
+A: No. HolyC classes are essentially structs with associated functions.
+There is no virtual dispatch table, no inheritance, and no polymorphism.
+Methods are emitted as static functions with `ClassName_MethodName`
+naming. This keeps the generated C simple and efficient.
+
+**Q: Does HolyC support pointers to class methods?**
+
+A: Since class methods are emitted as regular C functions, you can take
+pointers to them. However, the `this` pointer must be passed explicitly
+when calling through a function pointer:
+
+```c
+class Vec2 { F64 x, y; F64 Length() { return Sqrt(x*x + y*y); } };
+
+F64 (*fp)(Vec2*) = Vec2_Length;  // function pointer to class method
+Vec2 v; v.x = 3; v.y = 4;
+F64 len = fp(&v);                // must pass this explicitly
+```
+
+**Q: How do I pass command-line arguments to a HolyC program?**
+
+A: HolyC programs using top-level code do not receive command-line
+arguments directly. If you need argc/argv, define an explicit `main()`
+function:
+
+```c
+I64 main(I64 argc, Char *argv[])
+{
+    for (I64 i = 0; i < argc; i++) {
+        Print("argv[%lld] = %s\\n", i, argv[i]);
+    }
+    return 0;
+}
+```
+
+**Q: What happens if I don't return a value from a non-U0 function?**
+
+A: The behavior is undefined, just like in C. The transpiler does not
+warn about missing return values. The generated C code will have a
+function that falls off the end without returning, which leads to
+undefined behavior at runtime.
+
+### 21.8 Troubleshooting Common Issues
+
+#### Issue: \"undefined identifier 'Print'\"
+Print is built-in, so this error usually means the file wasn't processed
+correctly. Check that:
+- The file has a `.HC` extension
+- You're using `holycc` (not gcc directly)
+- The runtime library is properly installed
+
+#### Issue: \"expected ';'\" after a class definition
+HolyC classes require a semicolon after the closing brace:
+```c
+class Foo { I64 x; };    // <-- semicolon required
+```
+
+#### Issue: GCC compilation errors
+If GCC reports errors on the generated C code, try:
+```bash
+holycc program.HC --keep-c --emit-c
+gcc -std=c17 -Wall /tmp/program.c -o program -lm
+```
+This shows you the actual C code being compiled. Common issues include:
+- Missing return statements
+- Type mismatches
+- Macro expansion problems
+
+#### Issue: \"cannot dereference non-pointer type\"
+This occurs when the `*` operator is used on a non-pointer variable.
+Check that the variable is declared as a pointer type:
+```c
+I64 x = 42;
+I64 y = *x;          // ERROR: x is not a pointer
+I64 *ptr = &x;
+I64 y = *ptr;        // OK
+```
+
+#### Issue: Segmentation fault at runtime
+Common causes:
+- Dereferencing NULL pointers
+- Using uninitialized pointers
+- Buffer overflow (writing past the end of an array)
+- Double-free or use-after-free
+- Stack overflow from deep recursion
+
+Use MAlloc/Free carefully and validate pointer values before dereferencing.
+
+---
+
+## 22. API Index (Quick Reference)
+
+### Built-in Functions
+
+**I/O:**
+- `void Print(const char *fmt, ...)`
+- `void PrintLn(const char *fmt, ...)`
+- `void PutChar(char c)`
+- `int GetCh(void)`
+- `int SPrint(char *buf, const char *fmt, ...)`
+
+**Memory:**
+- `void *MAlloc(uint64_t size)`
+- `void Free(void *ptr)`
+- `uint64_t MSize(void *ptr)`
+- `void MemSet(uint8_t *dst, uint8_t val, uint64_t count)`
+- `void MemCpy(uint8_t *dst, const uint8_t *src, uint64_t count)`
+- `int64_t MemCompare(const uint8_t *a, const uint8_t *b, uint64_t count)`
+
+**String:**
+- `uint64_t StrLen(const char *str)`
+- `bool StrCompare(const char *a, const char *b)`
+- `int64_t AtoI(const char *str)`
+- `double AtoF(const char *str)`
+
+**Control:**
+- `void CDelay(uint64_t ms)`
+- `void Exit(int64_t code)`
+
+**Trigonometric:**
+- `double Sin(double x)`, `double Cos(double x)`, `double Tan(double x)`
+- `double ASin(double x)`, `double ACos(double x)`, `double ATan(double x)`, `double ATan2(double y, double x)`
+
+**Hyperbolic:**
+- `double SinH(double x)`, `double CosH(double x)`, `double TanH(double x)`
+
+**Exponential/Power/Roots:**
+- `double Exp(double x)`, `double Pow(double base, double exp)`
+- `double Sqrt(double x)`, `double Cbrt(double x)`
+- `double Hypot(double a, double b)`
+
+**Logarithm:**
+- `double Log(double x)`, `double Log2(double x)`, `double Log10(double x)`
+
+**Rounding:**
+- `double Floor(double x)`, `double Ceil(double x)`
+- `double Round(double x)`, `double Trunc(double x)`
+
+**Absolute Value:**
+- `double FAbs(double x)`, `int64_t Abs(int64_t x)`
+
+**Min/Max:**
+- `double FMin(double a, double b)`, `double FMax(double a, double b)`
+- `int64_t Min(int64_t a, int64_t b)`, `int64_t Max(int64_t a, int64_t b)`
+
+**Misc:**
+- `double FMod(double x, double y)`
+
+### Built-in Constants
+
+- `F64 HC_PI`    = 3.14159265358979323846
+- `F64 HC_E`     = 2.71828182845904523536
+- `F64 HC_TAU`   = 6.28318530717958647692
+- `F64 HC_SQRT2` = 1.41421356237309504880
+- `Bool TRUE`    = 1
+- `Bool FALSE`   = 0
+- `void* NULL`   = (void*)0
+
+### Built-in Keywords
+
+Types: I8, I16, I32, I64, U8, U16, U32, U64, F64, Bool, Char, void, U0
+
+Storage: static, extern, public, private, const, reg, noreg, no_warn
+
+Control: if, else, for, while, do, switch, case, default, break, continue,
+return, goto
+
+Exceptions: try, catch, throw
+
+Aggregates: class, union, enum
+
+Operators: sizeof, offset, has
+
+Other: asm, import, include, define
+
+Constants: TRUE, FALSE, NULL
+
+### CLI Options
+
+```
+holycc [options] <input.HC>
+  -o <file>        Output binary path
+  -c, --emit-c     Emit C17 only
+  --compile        Compile to binary (default)
+  --run            Compile and execute
+  --keep-c         Keep temp .c file
+  --tokens         Dump token stream
+  --ast            Dump AST tree
+  --help           Show help
+  --version        Print version
+```
+
+---
+
+## 23. Version History
+
+### v0.1.0 (Initial Release)
+- Core language implementation
+- Type system with fixed-width integers
+- Control flow (if, for, while, do-while, switch)
+- Functions and variadic argc/argv
+- Classes with methods (OOP)
+- Exception handling (try/catch/throw)
+- Full runtime library (I/O, memory, string, math)
+- Preprocessor (#define, #include, #if/#else/#endif)
+- HolC-specific features (chained comparisons, power operator,
+  auto-print, bare calls, switch extensions)
+- Compiler pipeline (Lexer, Parser, Semantic, CodeGen, Driver)
+- 161 lexer unit tests
+- 10+ example programs
+- GCC/Clang backend with -O2 optimization
+- GPL v3 licensed
+
+---
+
+## References
+
+- **TempleOS**: https://templeos.org/
+- **Terry A. Davis**: https://en.wikipedia.org/wiki/Terry_A._Davis
+- **holycc Repository**: https://github.com/Voctl/holyc
+- **HolyC Language Reference**: docs/LANGUAGE.md
+- **Compiler Architecture**: docs/ARCHITECTURE.md
+- **GPL v3 License**: LICENSE
+
+---
+
+*HolyC is the language of TempleOS, created by Terry A. Davis (1969-2018).*
+*holycc is a clean-room reimplementation released under the GPL v3 license.*
+*\"An operating system is a work of art.\" — Terry A. Davis*
