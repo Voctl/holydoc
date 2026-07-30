@@ -1499,3 +1499,83 @@ double Trunc(double x);   // round toward zero
 
 ```c
 F64 v = 3.7;
+F64 f = Floor(v);    // 3.0
+F64 c = Ceil(v);     // 4.0
+F64 r = Round(v);    // 4.0
+F64 t = Trunc(v);    // 3.0
+```
+
+#### Absolute Value
+
+```c
+double FAbs(double x);     // F64 absolute value
+int64_t Abs(int64_t x);    // I64 absolute value
+```
+
+#### Min / Max
+
+```c
+double FMin(double a, double b);
+double FMax(double a, double b);
+int64_t Min(int64_t a, int64_t b);
+int64_t Max(int64_t a, int64_t b);
+```
+
+#### FMod
+
+```c
+double FMod(double x, double y);  // floating remainder
+```
+
+### 10.6 Math Constants
+
+```c
+#define HC_PI    3.14159265358979323846
+#define HC_E     2.71828182845904523536
+#define HC_TAU   6.28318530717958647692
+#define HC_SQRT2 1.41421356237309504880
+```
+
+```c
+F64 circumference = 2.0 * HC_PI * radius;
+F64 area = HC_PI * radius * radius;
+F64 full_turn = HC_TAU;
+F64 diagonal = HC_SQRT2 * side;
+```
+
+---
+
+## 11. HolyC-Specific Features
+
+### 11.1 Top-Level Code
+
+Statements outside any function execute at startup:
+
+```c
+"Starting...\n";
+I64 x = 42;
+return 0;
+```
+
+### 11.2 String Auto-Print
+
+Bare string literals auto-print:
+
+```c
+"Hello\n";               // equivalent to Print("Hello\n");
+```
+
+### 11.3 Bare Function Call
+
+Zero-arg functions can be called by name alone:
+
+```c
+MyFunc;                   // same as MyFunc();
+```
+
+### 11.4 Chained Comparisons
+
+```c
+if (0 <= x < 10) { }     // (0 <= x) && (x < 10)
+if (a < b <= c < d) { }  // chains of any length
+```
