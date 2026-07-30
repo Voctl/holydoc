@@ -649,3 +649,143 @@ if (1 <= x && x < 10 <= y) { } // valid chain
 ### 5.7 Member Access Operators
 
 ```c
+class Point { I64 x; I64 y; };
+Point p;
+p.x = 10;                  // direct access
+Point *ptr = &p;
+ptr->x = 30;               // pointer access
+I64 arr[5];
+arr[2] = 42;               // array subscript
+```
+
+### 5.8 The Power Operator (Backtick)
+
+The backtick character is a binary power operator, mapping to pow():
+
+```c
+F64 squared = 5.0 ` 2.0;    // 25.0
+F64 cubed   = 2.0 ` 3.0;    // 8.0
+F64 root    = 27.0 ` (1.0/3.0); // 3.0
+F64 big     = 10.0 ` 6.0;   // 1,000,000.0
+```
+
+### 5.9 The offset Operator
+
+Returns byte offset of a field:
+
+```c
+class Data { I8 flags; I64 value; F64 ratio; };
+I64 off1 = offset(Data.flags);  // 0
+I64 off2 = offset(Data.value);  // typically 8
+I64 off3 = offset(Data.ratio);  // typically 16
+```
+
+### 5.10 The sizeof Operator
+
+```c
+I64 s1 = sizeof(I8);          // 1
+I64 s2 = sizeof(I64);         // 8
+I64 s3 = sizeof(F64);         // 8
+I64 s4 = sizeof(Char);        // 1
+I64 s5 = sizeof(Bool);        // 1
+I64 s6 = sizeof(U0);          // 0
+I64 arr[20];
+I64 s7 = sizeof(arr);         // 160
+class Vec3 { F64 x; F64 y; F64 z; };
+I64 s8 = sizeof(Vec3);        // 24
+```
+
+### 5.11 The Cast Operator
+
+```c
+F64 pi = 3.14159;
+I64 truncated = (I64)pi;      // 3
+I64 addr = 0x7FFF0000;
+void *ptr = (void*)addr;
+F64 ratio = (F64)10 / 3;      // 3.333...
+```
+
+### 5.12 The Ternary Conditional Operator
+
+```c
+I64 age = 20;
+Char *status = (age >= 18) ? "adult" : "minor";
+I64 max = (a > b) ? a : b;
+```
+
+### 5.13 Operator Precedence Table
+
+| Level | Operators                      | Assoc          |
+|-------|--------------------------------|----------------|
+| 14    | `                             | Left-to-right  |
+| 13    | * / %                        | Left-to-right  |
+| 12    | + -                          | Left-to-right  |
+| 11    | << >>                        | Left-to-right  |
+| 10    | < <= > >=                     | Left-to-right  |
+| 9     | == !=                        | Left-to-right  |
+| 8     | &                            | Left-to-right  |
+| 7     | ^                            | Left-to-right  |
+| 6     | |                            | Left-to-right  |
+| 5     | &&                           | Left-to-right  |
+| 4     | ||                           | Left-to-right  |
+| 3     | ?:                           | Right-to-left  |
+| 2     | = += -= *= /= %= &= |= ^= <<= >>= | Right-to-left |
+
+Prefix unary operators bind tighter than binary. Postfix binds tightest.
+
+---
+
+## 6. Control Flow
+
+### 6.1 if / else if / else
+
+```c
+I64 score = 85;
+if (score >= 90) {
+    Print("Grade: A\n");
+} else if (score >= 80) {
+    Print("Grade: B\n");
+} else if (score >= 70) {
+    Print("Grade: C\n");
+} else {
+    Print("Grade: F\n");
+}
+```
+
+### 6.2 Chained Comparisons in Conditions
+
+```c
+I64 age = 17;
+if (13 <= age < 20) {
+    Print("Teenager\n");
+}
+if (0 < age < 150) {
+    Print("Valid age\n");
+}
+```
+
+### 6.3 switch Statement
+
+```c
+switch (x) {
+    case 0:
+        Print("zero\n"); break;
+    case 1:
+        Print("one\n"); break;
+    default:
+        Print("other\n"); break;
+}
+```
+
+### 6.4 Implicit Case Labels
+
+Cases without values auto-increment from 0:
+
+```c
+switch (mode) {
+    case:            // 0
+        Print("Idle\n"); break;
+    case:            // 1
+        Print("Active\n"); break;
+    case:            // 2
+        Print("Debug\n"); break;
