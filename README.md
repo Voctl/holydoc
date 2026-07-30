@@ -2669,3 +2669,263 @@ Options:
 ### 17.2 Usage Examples
 
 ```bash
+holycc program.HC              # basic compilation
+holycc program.HC -o output   # named output
+holycc program.HC --run       # compile and run
+holycc program.HC --emit-c    # C only, no binary
+holycc program.HC --keep-c    # keep .c file
+holycc program.HC --tokens    # debug: show tokens
+holycc program.HC --ast       # debug: show AST
+```
+
+The generated .c file goes to /tmp/ and is deleted after compilation.
+Use --keep-c to preserve it.
+
+---
+
+## 18. Differences from C
+
+| Feature              | C                      | HolyC                          |
+|----------------------|------------------------|--------------------------------|
+| Entry point         | int main()             | Top-level code                 |
+| Type aliasing       | typedef struct         | class keyword                  |
+| Function call       | f() always             | f; for 0-arg functions         |
+| String print        | printf("...")          | "..."; auto-prints              |
+| Variadic args       | va_list macros         | argc/argv built-in             |
+| Chained compare     | Not valid              | 13 <= x < 20                   |
+| Switch cases        | Fixed values only      | Implicit + range cases         |
+| Void procedures     | void                   | U0 (zero-sized)                |
+| Field offset        | offsetof()             | offset() keyword               |
+| Power operator      | pow() library          | ` backtick                     |
+| Includes            | <> and ""              | Only ""                        |
+| continue            | Yes                    | Use goto instead (warning)     |
+| Function-like macros| Yes                    | Not supported                  |
+| #include            | Standard library       | Builtins always available      |
+| main signature      | int main(int, char**)  | I64 main() or top-level code   |
+| Boolean type        | _Bool / int            | Bool with TRUE/FALSE           |
+| Fixed-width ints    | inttypes.h             | Built-in (I8-I64, U8-U64)     |
+| Exception handling  | setjmp/longjmp         | try/catch/throw keyword        |
+
+---
+
+## 19. Building and Contributing
+
+### 19.1 Build Requirements
+
+- C17 compiler (GCC 8+ or Clang 10+)
+- CMake 3.16+
+- Make or Ninja
+- Linux (primary target, may work on other Unix-like systems)
+
+### 19.2 Build Instructions
+
+```bash
+git clone https://github.com/Voctl/holyc.git
+cd holyc
+cmake -B build
+cmake --build build
+
+# Build types:
+cmake -B build_debug -DCMAKE_BUILD_TYPE=Debug
+cmake -B build_release -DCMAKE_BUILD_TYPE=Release
+
+# Install
+sudo ./install.sh
+```
+
+### 19.3 Testing
+
+```bash
+# Build and run lexer tests
+cmake -B build && cmake --build build
+./build/tests/test_lexer             # 161 tests
+
+# Test example programs
+holycc examples/hello.HC --run
+holycc examples/complex.HC --run
+holycc examples/switch.HC --run
+```
+
+### 19.4 Contributing Guidelines
+
+- Code style: C17 with -Wall -Wextra -Wpedantic
+- No global variables
+- No function-like macros
+- Small, focused functions
+- BSD-style indentation (4 spaces, no tabs)
+- GPL v3 license
+
+---
+
+## 20. Implementation Limits and Notes
+
+### 20.1 Limits Table
+
+| Limit                      | Value        |
+|----------------------------|--------------|
+| Max diagnostics stored     | 256          |
+| Max AST depth              | Unbounded    |
+| Max nested includes        | Unbounded    |
+| Max array dimensions       | Unbounded    |
+| Max switch range size      | Unbounded    |
+| Max function parameters    | Unbounded    |
+| Max identifier length      | Unbounded    |
+| Max string literal length  | Unbounded    |
+| Max source file size       | Unbounded    |
+| Max variadic args          | 64           |
+
+### 20.2 Behavioral Notes
+
+1. **String literals** are read-only in generated C.
+2. **Integer type promotion**: No implicit promotion. Operations between
+   different integer types keep the left-hand type unless one is F64.
+3. **NULL** is a pointer-typed constant equivalent to (void*)0.
+4. **Boolean context**: Comparisons produce Bool. if/while conditions
+   must be Bool-typed (generated C accepts any scalar).
+5. **Switch semantics**: HolyC switches do NOT fall through automatically.
+   Each case body is self-contained.
+6. **continue warning**: continue is not standard HolyC. The compiler
+   emits a warning suggesting goto.
+7. **Class method dispatch**: Methods are static functions named
+   ClassName_MethodName. No virtual dispatch or inheritance.
+8. **Top-level wrapping**: Statements outside functions are wrapped
+   in int main() in declaration order.
+9. **Memory management**: MAlloc/Free must be matched. Free(NULL) is safe.
+10. **The runtime library** avoids <string.h> for MemSet/MemCpy/MemCompare
+    to keep generated code self-contained.
+
+---
+
+## 21. Advanced Topics
+
+### 21.1 Extending the Compiler
+
+The holycc compiler is designed to be extensible. The pipeline architecture
+makes it straightforward to add new passes or modify existing ones:
+
+- **New syntax**: Add new token kinds in `token.h`, parsing rules in `parser.c`,
+  AST nodes in `ast.h`, and codegen cases in `codegen.c`.
+- **New optimizations**: Add AST transformation passes between semantic and
+  codegen. The `ast_visit()` function supports pre/post-order traversal.
+- **New targets**: Modify the code generator to emit a different language
+  or add a new backend pass.
+
+### 21.2 Performance Considerations
+
+- HolyC's fixed-width types eliminate ambiguity in arithmetic operations.
+- The power operator (`` ` ``) calls `pow()` from libm — use `Sqrt()` for
+  square roots (faster).
+- Integer division and modulo are slower than multiplication — consider
+  using bit shifts for powers of 2.
+- MemSet/MemCpy/MemCompare use byte-by-byte loops. For large blocks,
+  consider using the system's `memcpy`/`memset` directly.
+- The transpiler output is optimized by GCC/Clang at `-O2`.
+
+### 21.3 Interfacing with C
+
+HolyC code can call C functions and libraries through careful integration:
+
+```c
+// Declare external C function
+extern I64 printf(Char *fmt, ...);
+
+// Call it (though Print() is preferred)
+printf("Called from HolyC via printf!\\n");
+
+// Include C headers for complex libraries
+#include "cjson.HC"   // if you have HolyC bindings
+```
+
+Since the generated output is C17, any C library can theoretically be
+linked, provided you write appropriate HolyC-compatible declarations.
+
+### 21.4 Common Patterns and Idioms
+
+#### Error Handling with Goto
+
+```c
+U0 ReadAndProcess()
+{
+    if (!open_file()) goto cleanup;
+    if (!read_data()) goto cleanup;
+    if (!process())   goto cleanup;
+    return;
+
+cleanup:
+    Print("Error occurred, cleaning up\\n");
+    close_file();
+}
+```
+
+#### Factory Function Pattern
+
+```c
+class Buffer {
+    U8 *data;
+    U64 size;
+};
+
+Buffer *CreateBuffer(U64 size)
+{
+    Buffer *b = MAlloc(sizeof(Buffer));
+    b->data = MAlloc(size);
+    b->size = size;
+    MemSet(b->data, 0, size);
+    return b;
+}
+
+U0 DestroyBuffer(Buffer *b)
+{
+    if (b) {
+        Free(b->data);
+        Free(b);
+    }
+}
+```
+
+#### Enum-Based State Machine
+
+```c
+enum State {
+    STATE_IDLE,
+    STATE_RUNNING,
+    STATE_PAUSED,
+    STATE_ERROR
+};
+
+enum State current = STATE_IDLE;
+
+U0 Transition(enum State next)
+{
+    switch (next) {
+        case STATE_IDLE:
+            Print("-> IDLE\\n");
+            break;
+        case STATE_RUNNING:
+            if (current == STATE_IDLE || current == STATE_PAUSED) {
+                Print("-> RUNNING\\n");
+            } else {
+                Print("Invalid transition\\n");
+                return;
+            }
+            break;
+        case STATE_PAUSED:
+            if (current == STATE_RUNNING) {
+                Print("-> PAUSED\\n");
+            } else {
+                Print("Invalid transition\\n");
+                return;
+            }
+            break;
+        case STATE_ERROR:
+            Print("-> ERROR\\n");
+            break;
+        default:
+            Print("Unknown state\\n");
+            return;
+    }
+    current = next;
+}
+```
+
+#### Dynamic Array (Vector)
