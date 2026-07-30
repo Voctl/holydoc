@@ -1129,3 +1129,193 @@ Vec2_Length(&v);
 union Data {
     I64 integer;
     F64 floating;
+    Char bytes[8];
+};
+
+union Data d;
+d.floating = 3.14159;
+I64 i = d.integer;          // read same bytes as int
+```
+
+### 8.7 enum
+
+```c
+enum Color { RED, GREEN, BLUE };
+enum HttpStatus { OK = 200, NOT_FOUND = 404 };
+enum Weekday { MON = 1, TUE, WED, THU, FRI, SAT, SUN };
+
+enum Color c = GREEN;      // 1
+I64 status = NOT_FOUND;    // 404
+```
+
+### 8.8 Memory Layout and Alignment
+
+| Type | Alignment | Size  |
+|------|-----------|-------|
+| I8/U8/Char/Bool | 1 byte  | 1 byte  |
+| I16/U16 | 2 bytes | 2 bytes |
+| I32/U32 | 4 bytes | 4 bytes |
+| I64/U64/F64 | 8 bytes | 8 bytes |
+
+```c
+class Example {
+    I8  a;      // offset 0, size 1
+    // 7 bytes padding
+    I64 b;      // offset 8, size 8
+    // Total: 16 bytes
+};
+```
+
+---
+
+## 9. Memory Management
+
+### 9.1 Stack vs Heap
+
+Stack: local variables, auto-allocated/freed, fast but limited (~8MB).
+Heap: manual allocation, persists until freed, larger capacity.
+
+### 9.2 Dynamic Allocation
+
+```c
+I64 *ptr = MAlloc(sizeof(I64));
+*ptr = 42;
+Free(ptr);
+
+I64 *arr = MAlloc(100 * sizeof(I64));
+for (I64 i = 0; i < 100; i++) arr[i] = i;
+Free(arr);
+
+class Point { I64 x; I64 y; };
+Point *p = MAlloc(sizeof(Point));
+p->x = 10; p->y = 20;
+Free(p);
+```
+
+### 9.3 Memory Operations
+
+```c
+I64 buf[256];
+MemSet((U8*)buf, 0, sizeof(buf));          // zero
+MemCpy((U8*)dest, (U8*)buf, sizeof(buf));  // copy
+I64 diff = MemCompare((U8*)a, (U8*)b, 32); // compare
+void *block = MAlloc(1024);
+U64 size = MSize(block);                    // >= 1024
+```
+
+### 9.4 Best Practices
+
+1. Always free what you allocate
+2. Free(NULL) is safe (no-op)
+3. Use MemSet with 0 to initialize memory
+4. Use sizeof() for correct allocation sizes
+5. Stack for small fixed-size, heap for large/variable
+
+---
+
+# Part II: Standard Library
+
+---
+
+## 10. Runtime Library — Complete API Reference
+
+All runtime functions are built-in. No includes or declarations needed.
+
+### 10.1 I/O Functions
+
+#### Print
+
+```c
+void Print(const char *fmt, ...);
+```
+
+Formatted output to stdout.
+
+```c
+Print("Hello, world!\n");
+Print("Value: %lld\n", 42);
+Print("Name: %s, Age: %lld\n", "Alice", 30);
+Print("PI = %.6f\n", 3.14159);
+```
+
+Format specifiers: %lld (I64), %llu (U64), %d (I32), %f (F64),
+%s (string), %c (char), %x (hex), %p (pointer)
+
+#### PrintLn
+
+```c
+void PrintLn(const char *fmt, ...);
+```
+
+Same as Print but appends newline:
+
+```c
+PrintLn("Hello, world!");      // "Hello, world!\n"
+```
+
+#### PutChar
+
+```c
+void PutChar(char c);
+```
+
+Outputs a single character:
+
+```c
+PutChar('H'); PutChar('i'); PutChar('!'); PutChar('\\n');
+// Output: Hi!
+```
+
+#### GetCh
+
+```c
+int GetCh(void);
+```
+
+Reads a single character from stdin (blocking):
+
+```c
+Print("Press a key: ");
+I64 ch = GetCh();
+Print("You pressed: %c (code %lld)\n", ch, ch);
+```
+
+#### SPrint
+
+```c
+int SPrint(char *buf, const char *fmt, ...);
+```
+
+Formats into a string buffer:
+
+```c
+Char buffer[256];
+I64 n = SPrint(buffer, "Value = %lld", 42);
+Print("Buffer: %s (%lld chars)\n", buffer, n);
+```
+
+### 10.2 Memory Functions
+
+#### MAlloc
+
+```c
+void *MAlloc(uint64_t size);
+```
+
+Allocates size bytes from the heap. Returns NULL on failure.
+Memory is NOT zero-initialized.
+
+```c
+I64 *arr = MAlloc(10 * sizeof(I64));
+if (arr == NULL) { Print("Allocation failed!\n"); return 1; }
+Free(arr);
+```
+
+#### Free
+
+```c
+void Free(void *ptr);
+```
+
+Deallocates memory. NULL-safe. Double-free is undefined.
+
