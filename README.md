@@ -1579,3 +1579,173 @@ MyFunc;                   // same as MyFunc();
 if (0 <= x < 10) { }     // (0 <= x) && (x < 10)
 if (a < b <= c < d) { }  // chains of any length
 ```
+
+### 11.5 Switch Extensions
+
+Implicit cases (auto-numbered from 0) and range cases:
+
+```c
+switch (x) {
+    case:             // 0
+    case 4...10:      // 4 through 10
+}
+```
+
+### 11.6 The U0 Type
+
+Zero-sized procedure type:
+
+```c
+U0 Log() { "logged\n"; }   // maps to void
+```
+
+### 11.7 argc/argv Variadic
+
+Built-in variadic support:
+
+```c
+I64 Sum(I64 n, ...) {
+    I64 total = 0;
+    for (I64 i = 0; i < argc; i++) total += argv[i];
+    return total;
+}
+```
+
+### 11.8 Class Methods
+
+Methods transpile to ClassName_MethodName(ClassName *this):
+
+```c
+class Vec2 {
+    F64 x, y;
+    F64 Length() { return Sqrt(x*x + y*y); }
+};
+// v.Length() -> Vec2_Length(&v)
+```
+
+### 11.9 try / catch / throw
+
+Exception handling via setjmp/longjmp:
+
+```c
+try {
+    if (error) throw;
+} catch {
+    "Error!\n";
+}
+```
+
+### 11.10 The reg and noreg Keywords
+
+Register allocation hints:
+
+```c
+reg I64 R15 fast;         // register hint
+noreg I64 slow;           // no register hint
+```
+
+### 11.11 The public and private Keywords
+
+Visibility control:
+
+```c
+public I64 api;           // documentation only
+private I64 internal;     // maps to static
+```
+
+### 11.12 The no_warn Keyword
+
+Suppress warnings:
+
+```c
+no_warn I64 temp;         // no unused var warning
+```
+
+### 11.13 The offset Keyword
+
+Field byte offset:
+
+```c
+offset(Vec2.y);           // -> offsetof(Vec2, y)
+```
+
+### 11.14 The has Keyword
+
+Compile-time member existence test (token only):
+
+```c
+has Vec2.y                // member exists?
+```
+
+### 11.15 Color Literals in Strings
+
+TempleOS color codes are stripped:
+
+```c
+"$FF$red text$FG$ normal\n";
+// $FF$ = foreground color, $FG$ = reset
+// $RRGGBB$ = true color (stripped)
+// $$ = literal dollar sign
+```
+
+### 11.16 Inline Assembly
+
+```c
+asm {
+    "mov eax, 42";
+};
+// Generated: /* inline assembly */ /* mov eax, 42 */;
+```
+
+### 11.17 The Power Operator
+
+Backtick is power operator:
+
+```c
+F64 square = 5.0 ` 2.0;   // 25.0 (pow(5.0, 2.0))
+```
+
+### 11.18 The NULL, TRUE, FALSE Constants
+
+```c
+void *ptr = NULL;         // null pointer
+Bool running = TRUE;      // true = 1
+Bool done = FALSE;        // false = 0
+```
+
+---
+
+## 12. Preprocessor and Modules
+
+### 12.1 #define
+
+Simple macro definitions (function-like macros NOT supported):
+
+```c
+#define WIDTH  800
+#define HEIGHT 600
+#define DEBUG  1
+#define TITLE  "HolyC"
+
+I64 area = WIDTH * HEIGHT;   // 480000
+```
+
+### 12.2 #include
+
+Only double-quote form (relative to source directory):
+
+```c
+#include "math.HC"
+#include "defines.HC"
+```
+
+### 12.3 import
+
+Similar to #include, but without .HC extension:
+
+```c
+import "mylib";           // searches mylib.HC
+```
+
+### 12.4 #if / #else / #endif
+
