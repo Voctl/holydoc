@@ -1749,3 +1749,163 @@ import "mylib";           // searches mylib.HC
 
 ### 12.4 #if / #else / #endif
 
+```c
+#define PLATFORM_LINUX 1
+#if PLATFORM_LINUX
+    "Running on Linux\n";
+#else
+    "Unknown platform\n";
+#endif
+```
+
+### 12.5 #ifdef / #ifndef / #elif
+
+```c
+#ifdef FEATURE_X
+    I64 feature_x = 1;
+#endif
+
+#ifndef DISABLE_LOGGING
+    U0 Log(Char *msg) { Print("[LOG] %s\n", msg); }
+#elif LOG_LEVEL >= 2
+    U0 Log(Char *msg) { Print("[VERBOSE] %s\n", msg); }
+#endif
+```
+
+---
+
+# Part III: Compiler Internals
+
+---
+
+## 13. Compiler Architecture
+
+### 13.1 Pipeline Overview
+
+The holycc transpiler is a multi-pass pipeline:
+
+```
+Source (.HC)
+    |
+    v
++-----------------+
+|     Lexer       |  Characters -> Tokens (114 token kinds)
+|  src/lexer/     |  Keyword matching, literal parsing
++--------+--------+
+         | Token stream
+         v
++-----------------+
+|    Parser       |  Tokens -> AST (45+ node kinds)
+|  src/parser/    |  Recursive descent + precedence climbing
++--------+--------+
+         | AST tree
+         v
++-----------------+
+|   Semantic      |  Type checking, symbol resolution
+|  src/semantic/  |  Scope management, error detection
++--------+--------+
+         | Verified AST
+         v
++-----------------+
+|   CodeGen       |  AST -> C17 source text
+|  src/codegen/   |  Type mapping, special case handling
++--------+--------+
+         | Generated C17 (.c)
+         v
++-----------------+
+|  GCC / Clang    |  Compilation + linking
+|  (via Driver)   |  libholyc_runtime.a + -lm
++--------+--------+
+         |
+         v
+   Native Executable
+```
+
+### 13.2 Lexer
+
+Location: src/lexer/lexer.c (473 lines)
+
+The lexer converts source text into a token stream, operating
+character-by-character through the source buffer.
+
+Key functions:
+- lexer_next_token() — consume and return the next token
+- lexer_peek_token() — return next token without consuming
+- lexer_read_number() — decimal, hex (0x), binary (0b), float
+- lexer_read_string() — strings with escape sequences
+- lexer_read_identifier() — identifier/keyword dispatch
+- lexer_read_preprocessor() — #if, #else, #endif, etc.
+- lexer_skip_whitespace() — spaces, tabs, // and /* */ comments
+
+Token kinds (114+):
+- Literals: integer, float, string, char, bool
+- Keywords: 53 HolyC keywords (all types, control flow, storage, etc.)
+- Operators: all arithmetic, bitwise, logical, comparison, assignment
+- Punctuation: {} () [] ; : , . -> ... #
+
+Comment handling:
+- // to end of line
+- /* */ block comments (nested not supported)
+
+### 13.3 Parser
+
+Location: src/parser/parser.c (1159 lines)
+
+Algorithm: Recursive descent with precedence climbing for expressions.
+
+Precedence levels (14=highest, 2=lowest):
+14: Power (`)
+13: Mult/Div/Mod (* / %)
+12: Add/Sub (+ -)
+11: Shift (<< >>)
+10: Relational (< <= > >=)
+9: Equality (== !=)
+8: Bitwise AND (&)
+7: Bitwise XOR (^)
+6: Bitwise OR (|)
+5: Logical AND (&&)
+4: Logical OR (||)
+3: Ternary (?:)
+2: Assignment (= += -= etc.)
+
+Parser layers:
+1. parser_parse_primary() — literals, identifiers, (...), {...}
+2. parser_parse_postfix() — [], (), ., ->, ++, --
+3. parser_parse_prefix() — unary -, !, ~, *, &, ++, --, sizeof, offset, casts
+4. parser_parse_binary() — precedence climbing with chained comparison
+5. parser_parse_expr() — entry point
+
+Statement parsing dispatches on token kind:
+- if/for/while/do/switch — control flow
+- return/break/continue/goto — jumps
+- try/catch/throw — exceptions
+- asm — inline assembly
+- { — block
+- Type keyword — declaration
+
+Chained comparisons: a < b <= c desugared to (a < b) && (b <= c)
+via AST cloning.
+
+### 13.4 Abstract Syntax Tree (AST)
+
+Location: src/ast/ast.c (186 lines)
+
+Each AstNode has:
+- kind — 45+ node kinds
+- first_child, last_child — child list anchors
+- next — sibling pointer
+- parent — parent pointer
+- data — polymorphic union (int, float, string, token_kind)
+- flags — boolean attributes
+- type — resolved Type* (attached by semantic analysis)
+
+AST node categories:
+- Literals: INTEGER, FLOAT, STRING, CHAR, BOOL, NULL
+- Identifiers: IDENTIFIER
+- Types: NAMED_TYPE, POINTER_TYPE, ARRAY_TYPE, FUNC_POINTER_TYPE
+- Expressions: BINARY, UNARY, CONDITIONAL, CALL, INDEX, MEMBER, etc.
+- Statements: IF, FOR, WHILE, DO_WHILE, SWITCH, CASE, RETURN, etc.
+- Declarations: FUNC_DECL, VAR_DECL, STRUCT_DECL, ENUM_DECL, etc.
+- Top-level: TRANSLATION_UNIT, INCLUDE, PP_IF, PP_ELSE, etc.
+
+Key operations:
