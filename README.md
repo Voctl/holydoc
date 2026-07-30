@@ -509,3 +509,143 @@ U0 DemoScope()
 
 Scope hierarchy: GLOBAL -> FUNCTION -> BLOCK -> STRUCT
 Inner scopes can shadow outer names:
+
+```c
+I64 x = 10;
+U0 ShadowDemo() {
+    I64 x = 20;                // shadows global x
+    Print("%lld\n", x);         // prints 20
+}
+```
+
+### 4.4 Constants
+
+```c
+Bool running = TRUE;            // TRUE = 1, FALSE = 0
+void *ptr = NULL;               // null pointer
+
+enum Color { RED, GREEN, BLUE };
+I64 c = GREEN;                  // 1
+
+F64 circumference = 2.0 * HC_PI * radius;
+```
+
+### 4.5 Variable Naming Rules
+
+- Must begin with a letter or underscore
+- Subsequent characters: letters, digits, or underscores
+- Case-sensitive (count, Count, COUNT are different)
+- No length limit
+- Keywords cannot be used as names
+
+---
+
+## 5. Operators
+
+### 5.1 Arithmetic Operators
+
+| Operator | Description   | Example   | Result |
+|----------|---------------|-----------|--------|
+| +      | Addition      | 10 + 3  | 13   |
+| -      | Subtraction   | 10 - 3  | 7    |
+| *      | Multiplication| 10 * 3  | 30   |
+| /      | Division      | 10 / 3  | 3 (integer) |
+| %      | Modulo        | 10 % 3  | 1    |
+| ++     | Increment     | x++     | x then x+1 |
+| --     | Decrement     | x--     | x then x-1 |
+
+```c
+I64 a = 10, b = 3;
+I64 sum = a + b;           // 13
+I64 diff = a - b;          // 7
+I64 prod = a * b;          // 30
+I64 quot = a / b;          // 3
+I64 rem = a % b;           // 1
+
+I64 c = 5;
+c++;                       // c = 6
+I64 d = ++c;               // c = 7, d = 7
+I64 e = c++;               // e = 7, c = 8
+```
+
+### 5.2 Bitwise Operators
+
+| Operator | Description   | Example       | Result     |
+|----------|---------------|---------------|------------|
+| &      | AND           | 0xFF & 0x0F | 0x0F     |
+| |      | OR            | 0xF0 | 0x0F | 0xFF     |
+| ^      | XOR           | 0xFF ^ 0x0F | 0xF0     |
+| ~      | NOT           | ~0xFF       | platform-dependent |
+| <<     | Left shift    | 1 << 4      | 16       |
+| >>     | Right shift   | 16 >> 2     | 4        |
+
+```c
+I64 flags = 0b0011;
+I64 mask   = 0b0101;
+I64 and    = flags & mask;     // 0b0001
+I64 or     = flags | mask;     // 0b0111
+I64 xor    = flags ^ mask;     // 0b0110
+I64 not    = ~flags;           // bitwise NOT
+I64 shl    = 1 << 3;          // 8
+I64 shr    = 16 >> 2;         // 4
+```
+
+### 5.3 Logical Operators
+
+| Operator | Description | Example           | Result  |
+|----------|-------------|-------------------|---------|
+| &&     | AND         | TRUE && FALSE   | FALSE |
+| ||     | OR          | TRUE || FALSE   | TRUE  |
+| !      | NOT         | !FALSE          | TRUE  |
+
+```c
+Bool a = TRUE;
+Bool b = FALSE;
+Bool r1 = a && b;       // FALSE
+Bool r2 = a || b;       // TRUE
+Bool r3 = !a;           // FALSE
+Bool r4 = !b;           // TRUE
+```
+
+Logical operators short-circuit.
+
+### 5.4 Comparison Operators
+
+| Operator | Description        | Example    | Result  |
+|----------|--------------------|------------|---------|
+| ==     | Equal to           | 5 == 5   | TRUE  |
+| !=     | Not equal to       | 5 != 3   | TRUE  |
+| <      | Less than          | 3 < 5    | TRUE  |
+| >      | Greater than       | 5 > 3    | TRUE  |
+| <=     | Less than or equal | 5 <= 5   | TRUE  |
+| >=     | Greater or equal   | 5 >= 3   | TRUE  |
+
+### 5.5 Chained Comparisons
+
+HolyC supports chained comparisons (invalid in C):
+
+```c
+if (0 <= x < 10) { }          // desugared to (0 <= x) && (x < 10)
+if (10 <= x < 100) { }        // (10 <= x) && (x < 100)
+if (1 <= x && x < 10 <= y) { } // valid chain
+```
+
+### 5.6 Assignment Operators
+
+| Operator | Example    | Equivalent to |
+|----------|------------|---------------|
+| =      | x = 5    | x = 5       |
+| +=     | x += 3   | x = x + 3   |
+| -=     | x -= 3   | x = x - 3   |
+| *=     | x *= 3   | x = x * 3   |
+| /=     | x /= 3   | x = x / 3   |
+| %=     | x %= 3   | x = x % 3   |
+| &=     | x &= 3   | x = x & 3   |
+| |=     | x |= 3   | x = x | 3   |
+| ^=     | x ^= 3   | x = x ^ 3   |
+| <<=    | x <<= 3  | x = x << 3  |
+| >>=    | x >>= 3  | x = x >> 3  |
+
+### 5.7 Member Access Operators
+
+```c
