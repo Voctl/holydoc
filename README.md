@@ -2479,3 +2479,193 @@ I64 Sub(I64 a, I64 b) { return a - b; }
 I64 Mul(I64 a, I64 b) { return a * b; }
 
 I64 Compute(I64 a, I64 b, I64 (*op)(I64,I64)) { return op(a,b); }
+
+Print("Add: %lld\n", Compute(10, 5, Add));
+Print("Sub: %lld\n", Compute(10, 5, Sub));
+Print("Mul: %lld\n", Compute(10, 5, Mul));
+
+I64 (*fp[3])(I64,I64) = {Add, Sub, Mul};
+for (I64 i = 0; i < 3; i++) {
+    Print("op[%lld] = %lld\n", i, fp[i](20, 4));
+}
+return 0;
+```
+
+### 15.14 Example: Preprocessor and Modules
+
+```c
+// ex14_preproc.HC
+#define DEBUG 1
+#define VERSION "2.0"
+#define MAX_ITEMS 100
+
+#if DEBUG
+    Print("Debug mode, version %s\n", VERSION);
+#endif
+
+#include "math.HC"
+
+I64 items[MAX_ITEMS];
+Print("MAX_ITEMS=%lld\n", MAX_ITEMS);
+return 0;
+```
+
+### 15.15 Example: Interactive CLI Program
+
+```c
+// ex15_cli.HC
+"=== Interactive CLI Demo ===\n";
+Print("Commands: w(up) s(down) a(left) d(right) q(quit)\n");
+
+I64 px = 0, py = 0;
+Bool running = TRUE;
+while (running) {
+    Print("Pos: (%lld,%lld) Command: ", px, py);
+    I64 ch = GetCh();
+    PutChar(ch); PutChar('\\n');
+    switch (ch) {
+        case 'w': py++; break;
+        case 's': py--; break;
+        case 'a': px--; break;
+        case 'd': px++; break;
+        case 'q': running = FALSE; break;
+        default: Print("Unknown!\n"); break;
+    }
+}
+"Goodbye!\n";
+return 0;
+```
+
+### 15.16 Example: Type System Demo
+
+```c
+// ex16_types.HC
+"=== Type System Demo ===\n";
+
+I8   i8  = 127;
+I16  i16 = 32767;
+I32  i32 = 2147483647;
+I64  i64 = 9223372036854775807;
+U8   u8  = 255;
+U16  u16 = 65535;
+U32  u32 = 4294967295;
+U64  u64 = 18446744073709551615ULL;
+F64  f64 = 3.141592653589793;
+Bool b   = TRUE;
+Char c   = 'X';
+
+Print("I8=%hhd, I16=%hd, I32=%d, I64=%lld\n", i8, i16, i32, i64);
+Print("U8=%hhu, U16=%hu, U32=%u, U64=%llu\n", u8, u16, u32, u64);
+Print("F64=%.15f, Bool=%d, Char=%c\n", f64, b, c);
+Print("sizeof(I64)=%lld, sizeof(F64)=%lld\n", sizeof(I64), sizeof(F64));
+Print("sizeof(I64[10])=%lld\n", sizeof(I64[10]));
+
+class TypeDemo { I8 a; I16 b; I32 c; I64 d; F64 e; };
+Print("sizeof(TypeDemo)=%lld\n", sizeof(TypeDemo));
+Print("offset(TypeDemo.d)=%lld\n", offset(TypeDemo.d));
+return 0;
+```
+
+### 15.17 Example: Complete Class-Based Program
+
+```c
+// ex17_complete.HC — Combines class, functions, and I/O
+class BankAccount {
+    I64  id;
+    Char owner[64];
+    I64  balance;
+
+    U0 Init(I64 id, Char *owner, I64 balance) {
+        this->id = id;
+        StrCompare(this->owner, owner);  // copy would be needed
+        this->balance = balance;
+    }
+
+    U0 Deposit(I64 amount) {
+        if (amount > 0) {
+            balance += amount;
+            Print("Deposited %lld\n", amount);
+        }
+    }
+
+    Bool Withdraw(I64 amount) {
+        if (amount > 0 && amount <= balance) {
+            balance -= amount;
+            Print("Withdrew %lld\n", amount);
+            return TRUE;
+        }
+        Print("Insufficient funds\n");
+        return FALSE;
+    }
+
+    U0 Display() {
+        Print("Account #%lld: Balance = %lld\n", id, balance);
+    }
+};
+
+BankAccount acc;
+acc.Init(1001, "Alice", 1000);
+acc.Display;
+acc.Deposit(500);
+acc.Withdraw(200);
+acc.Display;
+return 0;
+```
+
+---
+
+## 16. Error Handling and Diagnostics
+
+### 16.1 Error Levels
+
+| Level   | Description            | Exit Code |
+|---------|------------------------|-----------|
+| Error   | Fatal compilation error | non-zero  |
+| Warning | Non-fatal diagnostic   | zero      |
+| Note    | Additional info         | N/A       |
+| ICE     | Internal compiler error | abort()   |
+
+### 16.2 Common Error Messages
+
+```
+undefined identifier 'foo'           — variable/function not declared
+duplicate definition of 'bar'        — already defined in scope
+cannot dereference non-pointer type  — * used on non-pointer
+'break' outside loop or switch       — break in wrong context
+'continue' outside loop              — continue in wrong context
+expected ';'                         — missing semicolon
+```
+
+### 16.3 Diagnostic Output Format
+
+```
+file.HC:10:5: error: undefined identifier 'foo'
+  |
+  |     foo = 42;
+  |     ^
+```
+
+---
+
+## 17. CLI Reference
+
+### 17.1 All Flags and Options
+
+```
+Usage: holycc [options] <input.HC>
+
+Options:
+  -o <file>        Output binary to <file>
+  -c, --emit-c     Emit C code only (keep .c file)
+  --compile        Compile to executable (default)
+  --run            Compile and run immediately
+  --keep-c         Keep generated .c file in /tmp/
+  --tokens         Dump token stream to stderr
+  --ast            Dump AST tree to stderr
+  --help           Show this help message
+  --version        Print version string
+```
+
+### 17.2 Usage Examples
+
+```bash
