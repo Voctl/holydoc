@@ -1909,3 +1909,173 @@ AST node categories:
 - Top-level: TRANSLATION_UNIT, INCLUDE, PP_IF, PP_ELSE, etc.
 
 Key operations:
+- ast_node_create(kind)
+- ast_add_child(parent, child)
+- ast_visit(node, pre_cb, post_cb) — pre/post-order traversal
+- ast_clone_node(node) — deep copy subtree
+- ast_node_destroy_tree(node) — recursive cleanup
+
+### 13.5 Semantic Analysis
+
+Location: src/semantic/semantic.c (536 lines)
+
+The semantic analyzer performs:
+
+Symbol resolution:
+- Looks up identifiers in symbol table
+- Resolves type names to internal Type* objects
+- Checks for undeclared variables/functions
+
+Type checking:
+- Dereference (*) requires pointer operand
+- Address-of (&) produces pointer type
+- Comparisons produce Bool
+- Arithmetic promotes to F64 if either operand is float
+- Function calls use symbol's return type
+
+Scope management:
+- Push scope on entering functions/blocks/aggregates
+- Pop scope on leaving
+- Detect duplicate definitions in current scope
+
+HolyC-specific checks:
+- continue outside loop -> warning
+- break outside loop/switch -> error
+- NULL, TRUE, FALSE recognized without declarations
+- Class methods registered with ClassName_MethodName naming
+
+### 13.6 Symbol Table
+
+Location: src/symbol/symbol.c (157 lines)
+
+Scope kinds: GLOBAL, FUNCTION, BLOCK, STRUCT, UNION
+Symbol kinds: VARIABLE, FUNCTION, STRUCT, UNION, ENUM, CONSTANT, LABEL, TYPEDEF
+Storage classes: NONE, STATIC, EXTERN
+
+Operations:
+- symbol_table_create() / destroy()
+- scope_push(kind) / scope_pop()
+- symbol_add(name, ...) — with duplicate detection
+- symbol_lookup(name) — walks scope chain
+- symbol_lookup_current_scope(name)
+
+### 13.7 Type System Internals
+
+Location: src/types/types.c (307 lines)
+
+Type kinds: VOID, U0, BOOL, CHAR, I8-I64, U8-U64, F64, POINTER, ARRAY, STRUCT, UNION, ENUM, FUNCTION, ERROR, UNRESOLVED
+
+Type factories:
+type_void(), type_bool(), type_i8(), ..., type_f64(),
+type_pointer(base), type_array(base, length), type_function(ret, params, variadic)
+
+Type queries:
+type_kind_name(), type_c_name(), type_size(), type_alignment()
+type_is_integer(), type_is_floating(), type_is_numeric()
+type_is_scalar(), type_is_aggregate()
+type_equals() — structural equality
+
+HolyC -> C17 name mapping:
+I8->int8_t, I16->int16_t, I32->int32_t, I64->int64_t,
+U8->uint8_t, U16->uint16_t, U32->uint32_t, U64->uint64_t,
+F64->double, Bool->bool, Char->char, void->void, U0->void
+
+### 13.8 Code Generator
+
+Location: src/codegen/codegen.c (1173 lines)
+
+The code generator walks the AST and emits C17 source text via StringBuffer.
+It is the most complex module (1173 lines) because it must handle every
+AST node kind and produce valid, idiomatic C17 output.
+
+#### CodeGen State Structure
+
+```c
+struct CodeGen {
+    SymbolTable *symtab;       // symbol table reference
+    int indent_level;          // current indentation (4 spaces per level)
+    StringBuffer buf;          // accumulating C17 output
+    FuncNameNode *func_names;  // linked list of declared function names
+};
+```
+
+The `func_names` linked list is built during a pre-scan of the translation
+unit. It stores every function name found in declarations, which enables
+the bare-call syntax (identifiers matching function names get appended
+with `()` automatically).
+
+#### Translation Unit Emission
+
+1. **Header emission**: Includes stdint, stdbool, stddef, stdio, stdlib,
+   string, math, stdarg, setjmp.
+2. **Runtime prototypes**: All built-in function declarations.
+3. **Math wrappers**: Thin wrapper functions around libm.
+4. **setjmp buffer**: `jmp_buf __holyc_jmp_buf;`
+5. **Function pre-scan**: Collect function names for bare-call support.
+6. **Main detection**: Scan for explicit `main()`. If absent and top-level
+   statements exist, create a synthetic `int main() { ... }`.
+7. **Declaration-first ordering**: Function/type declarations are emitted
+   before top-level statements in the synthetic main.
+
+#### Expression Emission (codegen_emit_expr)
+
+Handles all expression node kinds:
+
+- **Literals**: Integer, float, string, char, bool, NULL
+- **Identifiers**: Emitted directly by name
+- **Unary**: -, !, ~ prefix; * and & with parentheses; ++/-- prefix
+- **Binary**: Wrapped in `(left op right)` except power operator which
+  becomes `pow(left, right)`
+- **Ternary**: `(cond ? then : else)`
+- **Calls**: `func(arg1, arg2, ...)`
+- **Index**: `base[index]`
+- **Member**: `obj.field` and `ptr->field`
+- **Cast**: `((type)expr)`
+- **sizeof**: `sizeof(expr)`
+- **offset**: `offsetof(type, field)`
+- **Array init**: `{ val1, val2, ... }`
+
+String literals undergo color-code stripping: `$XX$` and `$RRGGBB$`
+sequences are removed, `$$` becomes literal `$`.
+
+Side-effect-free expressions (literals, identifiers, non-assignment
+binaries) are wrapped in `(void)(expr)` to suppress GCC warnings.
+
+#### Statement Emission (codegen_emit_stmt)
+
+The main dispatcher handles 35+ statement kinds:
+
+- **TranslationUnit**: Top-level orchestrator (header + declarations + main)
+- **FuncDecl**: Return type mapping, `main()` gets `int`, variadic setup
+- **VarDecl**: Optional static/extern, type mapping, array syntax, init
+- **Block**: `{ indent children dedent }`
+- **If/While/DoWhile/For**: Standard C control flow
+- **Switch**: Emits switch body with case/default/range children
+- **Case**: Single value `case N:`
+- **CaseRange**: Expands to `case N: case N+1: ... case M:`
+- **Return/Break/Continue/Goto/Label**: Simple C statements
+- **ExprStmt**: String literals -> Print(), bare identifiers -> func(),
+  side-effect-free -> (void)(expr)
+- **Struct/Union**: typedef struct/union with field listing + method emission
+- **Enum**: typedef enum with enumerator values
+- **Try/Catch/Throw**: setjmp/longjmp with global jmp_buf
+- **Asm**: /* inline assembly */ comments
+- **Define**: #define pass-through
+- **Preprocessor**: #if/#else/#endif/#ifdef/#ifndef/#elif pass-through
+- **Include**: Child statements (from included file) emitted inline
+
+### 13.9 CLI Driver
+
+Location: src/driver/driver.c (396 lines)
+
+The driver orchestrates the pipeline:
+
+1. Parse CLI arguments
+2. Read source file
+3. Init diagnostics
+4. Lexer (--tokens dump)
+5. Parser (--ast dump)
+6. Semantic analysis
+7. Code generation
+8. GCC invocation:
+   gcc -std=c17 -O2 -Wall -Wextra -Wpedantic /tmp/prog.c -o prog -L/usr/local/lib -lholyc_runtime -lm
