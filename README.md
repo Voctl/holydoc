@@ -2279,3 +2279,203 @@ return 0;
 
 ```c
 // ex04_functions.HC
+I64 Add(I64 a, I64 b) { return a + b; }
+I64 Factorial(I64 n) { if (n <= 1) return 1; return n * Factorial(n-1); }
+
+I64 SumAll(I64 count, ...) {
+    I64 total = 0;
+    for (I64 i = 0; i < argc; i++) total += argv[i];
+    return total;
+}
+
+Print("Add(10,20)=%lld\n", Add(10, 20));
+Print("5!=%lld\n", Factorial(5));
+Print("SumAll(5,10,20,30,40,50)=%lld\n", SumAll(5, 10, 20, 30, 40, 50));
+return 0;
+```
+
+### 15.5 Example: Classes and Methods (OOP)
+
+```c
+// ex05_oop.HC
+class Vec2 {
+    F64 x; F64 y;
+    F64 Length() { return Sqrt(x*x + y*y); }
+    U0 Scale(F64 f) { x *= f; y *= f; }
+    U0 Print(Char *l) { Print("%s: (%.2f,%.2f)\n", l, x, y); }
+};
+
+Vec2 v; v.x = 3; v.y = 4;
+v.Print("v");
+v.Scale(2);
+v.Print("v*2");
+Print("Length=%.2f\n", v.Length());
+return 0;
+```
+
+### 15.6 Example: Dynamic Memory — Linked List
+
+```c
+// ex06_list.HC
+class Node { I64 data; Node *next; };
+class List {
+    Node *head; I64 count;
+    U0 Init() { head = NULL; count = 0; }
+    U0 Push(I64 v) {
+        Node *n = MAlloc(sizeof(Node));
+        n->data = v; n->next = head; head = n; count++;
+    }
+    U0 Print() {
+        Node *c = head;
+        while (c) { Print("%lld ", c->data); c = c->next; }
+        Print("\n");
+    }
+    U0 Destroy() {
+        Node *c = head;
+        while (c) { Node *t = c; c = c->next; Free(t); }
+    }
+};
+
+List list; list.Init;
+list.Push(30); list.Push(20); list.Push(10);
+list.Print(); list.Destroy();
+return 0;
+```
+
+### 15.7 Example: Math Library in Action
+
+```c
+// ex07_math.HC
+F64 deg45 = HC_PI / 4.0;
+Print("Sin(45)=%.4f\n", Sin(deg45));
+Print("Cos(45)=%.4f\n", Cos(deg45));
+Print("Tan(45)=%.4f\n", Tan(deg45));
+Print("Sqrt(144)=%.0f\n", Sqrt(144.0));
+Print("2^10=%.0f\n", 2.0`10.0);
+Print("Cbrt(27)=%.0f\n", Cbrt(27.0));
+Print("Log2(256)=%.0f\n", Log2(256.0));
+Print("Floor(3.7)=%.0f, Ceil(3.7)=%.0f\n", Floor(3.7), Ceil(3.7));
+Print("Hypot(3,4)=%.0f\n", Hypot(3.0, 4.0));
+Print("Abs(-42)=%lld\n", Abs(-42));
+Print("Min(10,20)=%lld, Max(10,20)=%lld\n", Min(10,20), Max(10,20));
+return 0;
+```
+
+### 15.8 Example: Exception Handling
+
+```c
+// ex08_trycatch.HC
+U0 Validate(I64 age) {
+    if (age < 0) { Print("Throwing\n"); throw -1; }
+    Print("Age %lld is valid\n", age);
+}
+
+U0 Test(I64 v) {
+    try { Validate(v); } catch { Print("Caught for %lld\n", v); }
+}
+
+Test(25); Test(-5); Test(30);
+
+try { Print("In try\n"); throw 42; } catch { Print("In catch\n"); }
+return 0;
+```
+
+### 15.9 Example: Array Operations
+
+```c
+// ex09_arrays.HC
+I64 arr[5] = {10, 20, 30, 40, 50};
+for (I64 i = 0; i < 5; i++) arr[i] *= 2;
+for (I64 i = 0; i < 5; i++) Print("%lld ", arr[i]);
+Print("\n");
+
+I64 mat[3][4];
+I64 val = 0;
+for (I64 r=0; r<3; r++) for (I64 c=0; c<4; c++) mat[r][c] = val++;
+for (I64 r=0; r<3; r++) {
+    for (I64 c=0; c<4; c++) Print("%3lld ", mat[r][c]);
+    Print("\n");
+}
+
+class Point { I64 x; I64 y; };
+Point pts[3];
+for (I64 i=0; i<3; i++) { pts[i].x = i*3; pts[i].y = i*7; }
+Print("sizeof=%lld bytes, count=%lld\n", sizeof(arr), sizeof(arr)/sizeof(arr[0]));
+return 0;
+```
+
+### 15.10 Example: String Operations
+
+```c
+// ex10_strings.HC
+Char *msg = "Hello, HolyC!";
+Print("StrLen(\"%s\")=%llu\n", msg, StrLen(msg));
+Print("StrCompare: %s\n", StrCompare("abc","abc") ? "TRUE":"FALSE");
+I64 num = AtoI("12345");
+Print("AtoI= %lld\n", num);
+F64 pi = AtoF("3.14159");
+Print("AtoF= %.5f\n", pi);
+Char buf[256];
+I64 n = SPrint(buf, "Answer=%lld", 42);
+Print("SPrint: \"%s\" (%lld chars)\n", buf, n);
+"This auto-prints!\n";
+return 0;
+```
+
+### 15.11 Example: Switch Statement
+
+```c
+// ex11_switch.HC
+I64 mode = 1;
+switch (mode) {
+    case:  Print("Mode 0\n"); break;
+    case:  Print("Mode 1\n"); break;
+    case:  Print("Mode 2\n"); break;
+    default: Print("Other\n"); break;
+}
+
+I64 score = 73;
+switch (score) {
+    case 90...100: Print("A\n"); break;
+    case 80...89:  Print("B\n"); break;
+    case 70...79:  Print("C\n"); break;
+    case 0...69:   Print("D/F\n"); break;
+    default: Print("Invalid\n"); break;
+}
+return 0;
+```
+
+### 15.12 Example: Recursive Functions
+
+```c
+// ex12_recursive.HC
+I64 Factorial(I64 n) {
+    if (n <= 1) return 1;
+    return n * Factorial(n - 1);
+}
+
+I64 GCD(I64 a, I64 b) {
+    if (b == 0) return a;
+    return GCD(b, a % b);
+}
+
+I64 Fibonacci(I64 n) {
+    if (n <= 1) return n;
+    return Fibonacci(n-1) + Fibonacci(n-2);
+}
+
+Print("Factorial(10)=%lld\n", Factorial(10));
+Print("GCD(48,18)=%lld\n", GCD(48, 18));
+Print("Fibonacci(10)=%lld\n", Fibonacci(10));
+return 0;
+```
+
+### 15.13 Example: Function Pointers
+
+```c
+// ex13_funptr.HC
+I64 Add(I64 a, I64 b) { return a + b; }
+I64 Sub(I64 a, I64 b) { return a - b; }
+I64 Mul(I64 a, I64 b) { return a * b; }
+
+I64 Compute(I64 a, I64 b, I64 (*op)(I64,I64)) { return op(a,b); }
