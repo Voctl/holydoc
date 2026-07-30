@@ -1319,3 +1319,183 @@ void Free(void *ptr);
 
 Deallocates memory. NULL-safe. Double-free is undefined.
 
+#### MSize
+
+```c
+uint64_t MSize(void *ptr);
+```
+
+Returns usable size of allocated block:
+
+```c
+void *block = MAlloc(100);
+U64 actual = MSize(block);              // >= 100
+```
+
+#### MemSet
+
+```c
+void MemSet(uint8_t *dst, uint8_t value, uint64_t count);
+```
+
+Sets count bytes at dst to value:
+
+```c
+I64 buffer[256];
+MemSet((U8*)buffer, 0, sizeof(buffer));       // zero
+MemSet((U8*)buffer, 0xFF, sizeof(buffer));    // all 1s
+```
+
+#### MemCpy
+
+```c
+void MemCpy(uint8_t *dst, const uint8_t *src, uint64_t count);
+```
+
+Copies count bytes from src to dst.
+
+#### MemCompare
+
+```c
+int64_t MemCompare(const uint8_t *a, const uint8_t *b, uint64_t count);
+```
+
+Returns 0 if equal, negative if a < b, positive if a > b.
+
+### 10.3 String Functions
+
+#### StrLen
+
+```c
+uint64_t StrLen(const char *str);
+```
+
+Returns string length (excluding null terminator):
+
+```c
+U64 len = StrLen("Hello");      // 5
+```
+
+#### StrCompare
+
+```c
+bool StrCompare(const char *a, const char *b);
+```
+
+Equality check (returns TRUE if strings are identical):
+
+```c
+Bool eq = StrCompare("abc", "abc");  // TRUE
+```
+
+#### AtoI
+
+```c
+int64_t AtoI(const char *str);
+```
+
+String to I64:
+
+```c
+I64 val = AtoI("42");            // 42
+I64 neg = AtoI("-100");         // -100
+```
+
+#### AtoF
+
+```c
+double AtoF(const char *str);
+```
+
+String to F64:
+
+```c
+F64 f = AtoF("3.14159");         // 3.14159
+```
+
+### 10.4 Control Functions
+
+#### CDelay
+
+```c
+void CDelay(uint64_t ms);
+```
+
+Pauses execution for ms milliseconds:
+
+```c
+Print("Waiting...\n");
+CDelay(1000);
+Print("Done!\n");
+```
+
+#### Exit
+
+```c
+void Exit(int64_t code);
+```
+
+Terminates program immediately:
+
+```c
+if (fatal_error) { Print("Fatal error\n"); Exit(1); }
+```
+
+### 10.5 Math Library
+
+All math functions operate on F64 (double) and return F64.
+
+#### Trigonometric
+
+```c
+double Sin(double x);     // sine (radians)
+double Cos(double x);     // cosine (radians)
+double Tan(double x);     // tangent (radians)
+```
+
+#### Inverse Trigonometric
+
+```c
+double ASin(double x);    // arc sine, returns [-pi/2, pi/2]
+double ACos(double x);    // arc cosine, returns [0, pi]
+double ATan(double x);    // arc tangent, returns (-pi/2, pi/2)
+double ATan2(double y, double x); // quadrant-aware arc tangent
+```
+
+#### Hyperbolic
+
+```c
+double SinH(double x);    // hyperbolic sine
+double CosH(double x);    // hyperbolic cosine
+double TanH(double x);    // hyperbolic tangent
+```
+
+#### Exponential, Power, Roots
+
+```c
+double Exp(double x);            // e^x
+double Pow(double base, double exp); // base^exp
+double Sqrt(double x);           // square root
+double Cbrt(double x);           // cube root
+double Hypot(double a, double b); // sqrt(a^2 + b^2)
+```
+
+#### Logarithm
+
+```c
+double Log(double x);     // natural logarithm (ln)
+double Log2(double x);    // base-2 logarithm
+double Log10(double x);   // base-10 logarithm
+```
+
+#### Rounding
+
+```c
+double Floor(double x);   // round down (toward -inf)
+double Ceil(double x);    // round up (toward +inf)
+double Round(double x);   // round nearest (ties away from zero)
+double Trunc(double x);   // round toward zero
+```
+
+```c
+F64 v = 3.7;
