@@ -789,3 +789,133 @@ switch (mode) {
         Print("Active\n"); break;
     case:            // 2
         Print("Debug\n"); break;
+}
+```
+
+### 6.5 Range Case Labels
+
+A range `case X...Y:` matches any value from X to Y inclusive:
+
+```c
+switch (score) {
+    case 90...100:
+        Print("A\n"); break;
+    case 80...89:
+        Print("B\n"); break;
+    case 70...79:
+        Print("C\n"); break;
+    default:
+        Print("Invalid\n"); break;
+}
+```
+
+### 6.6 for Loop
+
+```c
+for (I64 i = 0; i < 10; i++) {
+    Print("i = %lld\n", i);
+}
+
+I64 j;
+for (j = 0; j < 10; j++) { }
+
+for ( ; ; ) { break; }  // infinite loop
+```
+
+### 6.7 while Loop
+
+```c
+I64 i = 0;
+while (i < 5) {
+    Print("i = %lld\n", i); i++;
+}
+
+while (TRUE) {           // infinite loop
+    if (exit) break;
+}
+```
+
+### 6.8 do-while Loop
+
+```c
+I64 i = 0;
+do {
+    Print("i = %lld\n", i); i++;
+} while (i < 5);
+```
+
+### 6.9 goto Statement
+
+HolyC encourages goto for control flow:
+
+```c
+I64 i = 0;
+start_loop:
+    if (i >= 5) goto end_loop;
+    Print("i = %lld\n", i);
+    i++;
+    goto start_loop;
+end_loop:
+
+// Error handling with goto
+U0 Process() {
+    if (!step1()) goto err;
+    if (!step2()) goto err;
+    return;
+err:
+    Print("Error\n");
+}
+```
+
+### 6.10 break Statement
+
+Exits innermost loop or switch:
+
+```c
+for (I64 i = 0; i < 100; i++) {
+    if (i == 50) break;
+}
+```
+
+### 6.11 continue Statement
+
+Skips to next iteration. Note: continue is not standard HolyC —
+the transpiler emits a warning suggesting goto instead.
+
+```c
+for (I64 i = 0; i < 10; i++) {
+    if (i % 2 == 0) continue;   // warning emitted
+    Print("%lld ", i);            // prints odd numbers
+}
+```
+
+### 6.12 return Statement
+
+```c
+I64 Add(I64 a, I64 b) { return a + b; }
+U0 Log(Char *msg) { Print("[LOG] %s\n", msg); return; }
+
+// Top-level return exits program
+Print("Hello\n");
+return 0;
+```
+
+---
+
+## 7. Functions
+
+### 7.1 Function Definition
+
+```c
+I64 Add(I64 a, I64 b)
+{
+    return a + b;
+}
+```
+
+No forward declarations needed — functions are visible file-wide.
+
+### 7.2 Return Types
+
+```c
+I64  Compute(I64 x)  { return x * x; }
