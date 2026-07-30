@@ -149,3 +149,223 @@ boilerplate while preserving low-level power. Key characteristics include:
 - **No mandatory #include** — runtime functions are always available
 - **No mandatory main()** — top-level code executes directly
 - **Fixed-width integer types** (I8, I16, I32, I64, U8, U16, U32, U64)
+- **Single floating-point type** (F64 = double)
+- **Built-in variadic argument handling** via argc / argv
+- **String literals as statements** auto-print to stdout
+- **Chained comparisons** like `0 <= x < 10`
+- **Extended switch** with implicit and range cases
+- **Class-based OOP** using the class keyword
+- **Exception handling** via try / catch / throw
+- **Power operator** using backtick
+- **No C-style struct** — only class
+
+### 1.2 Terry A. Davis and TempleOS
+
+Terry A. Davis (1969–2018) was an American programmer who single-handedly
+created TempleOS, a 64-bit operating system written entirely in HolyC.
+TempleOS featured its own kernel, compiler, graphics system, file system,
+and networking stack — all written in HolyC by one person over the course
+of a decade.
+
+HolyC was designed to be the ultimate C replacement: retaining C's power
+and speed while eliminating what Davis saw as unnecessary bureaucratic
+syntax. The language was never standardized outside of TempleOS.
+
+### 1.3 The holycc Transpiler
+
+holycc is a clean-room implementation of a HolyC-to-C17 transpiler. It:
+
+1. Reads HolyC source files (.HC)
+2. Parses them into an Abstract Syntax Tree
+3. Performs semantic analysis and type checking
+4. Generates human-readable C17 code
+5. Invokes GCC or Clang to produce a native executable
+
+The transpiler is written in C17 and has no dependencies beyond a C compiler
+and standard library. It is released under the GPL v3 license.
+
+### 1.4 Design Philosophy
+
+HolyC's design philosophy can be summarized as:
+
+- **Power over safety** — the programmer is trusted to know what they are doing
+- **Minimal boilerplate** — no #include for builtins, no typedef struct
+- **Everything is 64-bit by default** — the native word size is always I64
+- **No magic** — the generated C17 code is straightforward and readable
+- **Do what I mean** — string literals print, bare identifiers call functions
+
+---
+
+## 2. Quick Start
+
+### 2.1 Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/Voctl/holyc.git
+cd holyc
+
+# Build with CMake
+cmake -B build
+cmake --build build
+
+# Run the built-in test suite
+./build/tests/test_lexer
+
+# Install system-wide
+sudo ./install.sh
+```
+
+Build requirements:
+- C17 compiler (GCC 8+ or Clang 10+)
+- CMake 3.16+
+- Make or Ninja
+
+### 2.2 Installation
+
+The install.sh script copies the holycc binary to /usr/local/bin/
+and the runtime library to /usr/local/lib/. After installation:
+
+```bash
+holycc --version
+```
+
+### 2.3 Hello, World — Three Ways
+
+#### Method 1: Top-level code (no main)
+
+```c
+// hello.HC
+Print("Hello, world!\n");
+return 0;
+```
+
+#### Method 2: Explicit main function
+
+```c
+// hello_main.HC
+I64 main()
+{
+    Print("Hello, world!\n");
+    return 0;
+}
+```
+
+#### Method 3: String auto-print
+
+```c
+// hello_auto.HC
+"Hello, world!\n";
+return 0;
+```
+
+All three produce identical output: Hello, world!
+
+### 2.4 Compilation and Execution
+
+```bash
+# Compile to executable (produces ./hello)
+holycc hello.HC
+
+# Compile and run immediately
+holycc hello.HC --run
+
+# Specify output file
+holycc hello.HC -o my_program
+
+# Generate C17 only (no compilation)
+holycc hello.HC --emit-c
+
+# Keep the generated .c file
+holycc hello.HC --keep-c
+
+# View the token stream
+holycc hello.HC --tokens
+
+# View the AST tree
+holycc hello.HC --ast
+```
+
+---
+
+## 3. Type System
+
+### 3.1 Primitive Types
+
+HolyC uses fixed-width integer types instead of C's platform-dependent
+int, long, short. Every type has a guaranteed size across all platforms.
+
+| HolyC Type | Size    | Signed | C17 Equivalent    | Range (min)        | Range (max)        |
+|------------|---------|--------|--------------------|--------------------|--------------------|
+| I8       | 1 byte  | Yes    | int8_t           | -128               | 127                |
+| I16      | 2 bytes | Yes    | int16_t          | -32,768            | 32,767             |
+| I32      | 4 bytes | Yes    | int32_t          | -2,147,483,648     | 2,147,483,647      |
+| I64      | 8 bytes | Yes    | int64_t          | -9.22e18           | 9.22e18            |
+| U8       | 1 byte  | No     | uint8_t          | 0                  | 255                |
+| U16      | 2 bytes | No     | uint16_t         | 0                  | 65,535             |
+| U32      | 4 bytes | No     | uint32_t         | 0                  | 4,294,967,295      |
+| U64      | 8 bytes | No     | uint64_t         | 0                  | 1.84e19            |
+| F64      | 8 bytes | Yes    | double           | ~2.2e-308          | ~1.8e308           |
+| Bool     | 1 byte  | No     | bool             | FALSE (0)          | TRUE (1)           |
+| Char     | 1 byte  | N/A    | char             | -128 / 0           | 127 / 255          |
+| void     | 0 bytes | N/A    | void             | —                  | —                  |
+| U0       | 0 bytes | N/A    | void             | —                  | —                  |
+
+### 3.2 HolyC to C17 Type Mapping
+
+| HolyC      | C17              | Printf Format |
+|------------|------------------|---------------|
+| I8       | int8_t         | %hhd           |
+| I16      | int16_t        | %hd            |
+| I32      | int32_t        | %d             |
+| I64      | int64_t        | %lld           |
+| U8       | uint8_t        | %hhu           |
+| U16      | uint16_t       | %hu            |
+| U32      | uint32_t       | %u             |
+| U64      | uint64_t       | %llu           |
+| F64      | double         | %f / %g        |
+| Bool     | bool           | %d             |
+| Char     | char           | %c             |
+| void     | void           | —              |
+
+### 3.3 The U0 Procedure Type
+
+U0 is a zero-sized type used for procedures that return nothing. It is
+functionally identical to void but carries semantic meaning in HolyC:
+a U0 function is a procedure (no return value).
+
+```c
+U0 PrintMessage(Char *msg)
+{
+    Print("Message: %s\n", msg);
+}
+
+U0 LogError()
+{
+    "ERROR occurred\n";
+}
+```
+
+In C17, both U0 and void map to void.
+
+### 3.4 Derived Types
+
+| Syntax                 | Description                | C17 Equivalent              |
+|------------------------|----------------------------|-----------------------------|
+| Type*                | Pointer to Type            | Type*                     |
+| Type[size]           | Array of Type              | Type[size]                |
+| Type (*)(args)       | Function pointer           | Type (*)(args)            |
+| class Name { ... }   | Structured type            | typedef struct { ... } Name |
+| union Name { ... }   | Union type                 | typedef union { ... } Name |
+| enum Name { ... }    | Enumerated type            | typedef enum { ... } Name |
+
+```c
+I64 x = 42;
+I64 *ptr = &x;
+*ptr = 100;
+
+I64 arr[10];
+I64 matrix[5][5];
+arr[0] = 42;
+I64 values[4] = {1, 2, 3, 4};
+
