@@ -919,3 +919,213 @@ No forward declarations needed — functions are visible file-wide.
 
 ```c
 I64  Compute(I64 x)  { return x * x; }
+F64  GetPI()          { return HC_PI; }
+Bool IsPositive(I64 x){ return x > 0; }
+Char GetGrade(F64 pct){ return pct >= 90 ? 'A' : 'B'; }
+U0   Log(Char *msg)   { Print("[LOG] %s\n", msg); }
+void LogError(Char *e){ Print("[ERR] %s\n", e); }
+```
+
+### 7.3 Parameters
+
+```c
+U0 NoParams() { Print("No params\n"); }
+I64 Sum(I64 a, I64 b, I64 c) { return a + b + c; }
+```
+
+### 7.4 Variadic Functions (argc/argv)
+
+HolyC provides built-in argc and argv for variadic functions:
+
+```c
+I64 SumAll(I64 count, ...)
+{
+    I64 total = 0;
+    for (I64 i = 0; i < count; i++) {
+        total += argv[i];
+    }
+    return total;
+}
+
+I64 result = SumAll(5, 10, 20, 30, 40, 50);  // 150
+```
+
+- argc: number of variadic arguments (built-in)
+- argv: array of I64 containing the variadic arguments (built-in)
+- Maximum 64 variadic arguments
+- Function must have at least one named parameter before ...
+
+### 7.5 Bare Function Calls
+
+Zero-argument functions can be called without parentheses:
+
+```c
+U0 ClearScreen() { Print("\\033[2J\\033[H"); }
+
+U0 ShowBanner() {
+    ClearScreen;        // same as ClearScreen();
+    Print("Banner\n");
+}
+```
+
+### 7.6 The main() Entry Point
+
+```c
+I64 main()
+{
+    Print("Started\n");
+    return 0;
+}
+```
+
+Return value = exit code (0 = success).
+
+### 7.7 Top-Level Code Execution
+
+Statements outside any function become the entry point:
+
+```c
+"Starting...\n";
+I64 x = 42;
+U0 Init() { Print("Init\n"); }
+Init;
+return 0;
+```
+
+The transpiler wraps top-level statements in int main().
+
+### 7.8 Function Pointers
+
+```c
+I64 Add(I64 a, I64 b) { return a + b; }
+I64 Sub(I64 a, I64 b) { return a - b; }
+
+I64 Compute(I64 a, I64 b, I64 (*op)(I64, I64)) {
+    return op(a, b);
+}
+
+I64 (*fp)(I64, I64) = Add;
+I64 r = fp(10, 5);                    // 15
+I64 r2 = Compute(10, 5, Sub);         // 5
+```
+
+### 7.9 Callbacks
+
+```c
+U0 Map(I64 *arr, I64 count, I64 (*op)(I64)) {
+    for (I64 i = 0; i < count; i++) arr[i] = op(arr[i]);
+}
+
+I64 Double(I64 x) { return x * 2; }
+I64 data[3] = {1, 2, 3};
+Map(data, 3, Double);              // data = {2, 4, 6}
+```
+
+### 7.10 Recursion
+
+```c
+I64 Factorial(I64 n) {
+    if (n <= 1) return 1;
+    return n * Factorial(n - 1);
+}
+
+I64 Fibonacci(I64 n) {
+    if (n <= 1) return n;
+    return Fibonacci(n-1) + Fibonacci(n-2);
+}
+
+I64 f5 = Factorial(5);    // 120
+I64 f7 = Fibonacci(7);    // 13
+```
+
+---
+
+## 8. Classes, Structs, Unions, Enums
+
+### 8.1 The class Keyword
+
+HolyC uses class instead of C's typedef struct:
+
+```c
+class Vec2 {
+    F64 x;
+    F64 y;
+};
+```
+
+Generates:
+```c
+typedef struct { double x; double y; } Vec2;
+```
+
+### 8.2 Fields
+
+```c
+class Player {
+    I64  id;
+    Char name[64];
+    I64  health;
+    I64  level;
+    Bool is_alive;
+};
+
+Player p;
+p.id = 1;
+p.health = 100;
+Player *ptr = &p;
+ptr->level = 5;
+```
+
+### 8.3 Methods
+
+Functions defined inside a class become methods:
+
+```c
+class Vec2 {
+    F64 x;
+    F64 y;
+
+    F64 Length() {
+        return Sqrt(x * x + y * y);
+    }
+
+    U0 Scale(F64 factor) {
+        x *= factor;
+        y *= factor;
+    }
+};
+
+Vec2 v; v.x = 3; v.y = 4;
+F64 len = v.Length();      // 5.0
+v.Scale(2);                // v = (6, 8)
+```
+
+### 8.4 The this Pointer
+
+Inside a method, this refers to the current instance:
+
+```c
+class Vec2 {
+    F64 x; F64 y;
+    U0 Set(F64 x, F64 y) { this->x = x; this->y = y; }
+};
+```
+
+### 8.5 C17 Code Generation for Class Methods
+
+Methods transpile to ClassName_MethodName(ClassName *this):
+
+```c
+// HolyC:
+v.Length();
+
+// Generated C17:
+Vec2_Length(&v);
+```
+
+### 8.6 union
+
+```c
+union Data {
+    I64 integer;
+    F64 floating;
