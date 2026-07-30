@@ -369,3 +369,143 @@ I64 matrix[5][5];
 arr[0] = 42;
 I64 values[4] = {1, 2, 3, 4};
 
+I64 (*op)(I64, I64);
+I64 Add(I64 a, I64 b) { return a + b; }
+op = Add;
+I64 result = op(10, 20);
+```
+
+### 3.5 Type Literals
+
+```c
+I64  decimal    = 42;
+I64  hex        = 0xFF;
+I64  binary     = 0b1010;
+F64  float_lit  = 3.14159;
+F64  scientific = 2.718e0;
+Bool flag       = TRUE;
+Bool nope       = FALSE;
+Char c          = 'A';
+Char nl         = '\\n';
+Char nul        = '\\0';
+```
+
+Integer literals are I64 by default. Floating-point literals are F64.
+
+#### Escape Sequences in Character Literals
+
+| Sequence | Value  | Description     |
+|----------|--------|-----------------|
+| \\n     | 10     | Newline         |
+| \\t     | 9      | Tab             |
+| \\0     | 0      | Null character  |
+| \\\\     | 92     | Backslash       |
+| \\'     | 39     | Single quote    |
+| \\"     | 34     | Double quote    |
+
+### 3.6 Type Queries
+
+#### sizeof Operator
+
+```c
+I64 sz1 = sizeof(I64);          // 8
+I64 sz2 = sizeof(F64);          // 8
+I64 sz3 = sizeof(Char);         // 1
+I64 sz4 = sizeof(U0);           // 0
+I64 sz5 = sizeof(I64*);         // 8
+I64 sz6 = sizeof(I64[10]);      // 80
+I64 x = 42;
+I64 sz7 = sizeof(x);            // 8
+```
+
+#### offset Operator
+
+Returns the byte offset of a field within a class/struct:
+
+```c
+class Vec2 { F64 x; F64 y; };
+I64 off = offset(Vec2.y);       // 8
+```
+
+### 3.7 Type Predicates
+
+The type system classifies types into categories:
+
+- **Integer types**: I8, I16, I32, I64, U8, U16, U32, U64, Char
+- **Floating type**: F64
+- **Numeric**: integer or floating
+- **Scalar**: numeric, pointer, or Bool
+- **Aggregate**: struct, union, or array
+- **Void/U0**: zero-sized non-value types
+
+Type checking rules:
+- Arithmetic between two integers produces an integer type
+- If either operand is F64, the result is F64
+- Comparison operators produce Bool
+- Logical operators (&&, ||, !) require Bool operands
+- Assignment requires type compatibility
+
+---
+
+## 4. Variables and Storage
+
+### 4.1 Declaration and Initialization
+
+Variables are declared with a type followed by a name:
+
+```c
+I64 count;             // uninitialized (undefined value)
+I64 total = 0;         // initialized
+F64 pi = 3.14159;
+Bool flag = TRUE;
+Char letter = 'A';
+I64 *ptr = NULL;
+
+// Multiple on one line
+I64 a, b, c;
+I64 x = 10, y = 20, z = 30;
+```
+
+### 4.2 Storage Class Modifiers
+
+| Modifier  | Description                                      | C17 Equivalent |
+|-----------|--------------------------------------------------|----------------|
+| static  | File-internal linkage                             | static       |
+| extern  | External linkage                                  | extern       |
+| public  | Public API symbol (informational)                 | (none)       |
+| private | File-internal linkage                             | static       |
+| const   | Read-only                                         | const        |
+| reg     | Hint to store in a CPU register                   | (hint)       |
+| noreg   | Hint NOT to use a CPU register                    | (hint)       |
+| no_warn | Suppress compiler warnings                        | (absorbed)   |
+
+```c
+static I64 internal_counter = 0;
+extern I64 global_state;
+public I64 API_VERSION = 2;
+private I64 internal_flag = 0;
+const F64 TAX_RATE = 0.18;
+reg I64 R15 loop_counter;
+noreg I64 temp_result;
+no_warn I64 unused;
+```
+
+### 4.3 Scope and Lifetime
+
+HolyC uses lexical (static) scoping:
+
+```c
+I64 global = 100;               // GLOBAL scope
+
+U0 DemoScope()
+{
+    I64 func_var = 200;         // FUNCTION scope
+    {
+        I64 block_var = 300;    // BLOCK scope
+    }
+    // block_var is NOT accessible here
+}
+```
+
+Scope hierarchy: GLOBAL -> FUNCTION -> BLOCK -> STRUCT
+Inner scopes can shadow outer names:
